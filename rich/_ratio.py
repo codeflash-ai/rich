@@ -36,45 +36,47 @@ def ratio_resolve(total: int, edges: Sequence[Edge]) -> List[int]:
     # Size of edge or None for yet to be determined
     sizes = [(edge.size or None) for edge in edges]
 
+    # Cache necessary values
+    edges_length = len(edges)
+    min_sizes = [edge.minimum_size for edge in edges]
+    ratios = [edge.ratio for edge in edges]
+
     _Fraction = Fraction
 
     # While any edges haven't been calculated
     while None in sizes:
-        # Get flexible edges and index to map these back on to sizes list
-        flexible_edges = [
-            (index, edge)
-            for index, (size, edge) in enumerate(zip(sizes, edges))
-            if size is None
-        ]
-        # Remaining space in total
+        # Get remaining space in total
         remaining = total - sum(size or 0 for size in sizes)
         if remaining <= 0:
             # No room for flexible edges
             return [
-                ((edge.minimum_size or 1) if size is None else size)
-                for size, edge in zip(sizes, edges)
+                (sizes[i] if sizes[i] is not None else min_sizes[i])
+                for i in range(edges_length)
             ]
-        # Calculate number of characters in a ratio portion
-        portion = _Fraction(
-            remaining, sum((edge.ratio or 1) for _, edge in flexible_edges)
-        )
 
-        # If any edges will be less than their minimum, replace size with the minimum
-        for index, edge in flexible_edges:
-            if portion * edge.ratio <= edge.minimum_size:
-                sizes[index] = edge.minimum_size
-                # New fixed size will invalidate calculations, so we need to repeat the process
+        # Get flexible edges and their total ratio
+        flexible_edges = [
+            (i, ratios[i]) for i in range(edges_length) if sizes[i] is None
+        ]
+        total_ratio = sum(ratio for _, ratio in flexible_edges)
+
+        # Calculate number of characters in a ratio portion
+        portion = _Fraction(remaining, total_ratio)
+
+        # Allocate sizes based on minimum sizes first
+        for i, ratio in flexible_edges:
+            if portion * ratio <= min_sizes[i]:
+                sizes[i] = min_sizes[i]
                 break
         else:
             # Distribute flexible space and compensate for rounding error
-            # Since edge sizes can only be integers we need to add the remainder
-            # to the following line
             remainder = _Fraction(0)
-            for index, edge in flexible_edges:
-                size, remainder = divmod(portion * edge.ratio + remainder, 1)
-                sizes[index] = size
+            for i, ratio in flexible_edges:
+                size, remainder = divmod(portion * ratio + remainder, 1)
+                sizes[i] = int(size)
             break
-    # Sizes now contains integers only
+
+    # Sizes now contain integers only
     return cast(List[int], sizes)
 
 
