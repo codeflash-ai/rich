@@ -62,14 +62,12 @@ class Span(NamedTuple):
     def split(self, offset: int) -> Tuple["Span", Optional["Span"]]:
         """Split a span in to 2 from a given offset."""
 
-        if offset < self.start:
-            return self, None
-        if offset >= self.end:
+        if not (self.start <= offset < self.end):
             return self, None
 
         start, end, style = self
-        span1 = Span(start, min(end, offset), style)
-        span2 = Span(span1.end, end, style)
+        span1 = Span(start, offset, style)
+        span2 = Span(offset, end, style)
         return span1, span2
 
     def move(self, offset: int) -> "Span":
@@ -112,6 +110,46 @@ class Span(NamedTuple):
             return Span(start, end + cells, style)
         else:
             return self
+
+    def move(self, offset: int) -> "Span":
+        """Move start and end by a given offset.
+
+        Args:
+            offset (int): Number of characters to add to start and end.
+
+        Returns:
+            TextSpan: A new TextSpan with adjusted position.
+        """
+        start, end, style = self
+        return Span(start + offset, end + offset, style)
+
+    def right_crop(self, offset: int) -> "Span":
+        """Crop the span at the given offset.
+
+        Args:
+            offset (int): A value between start and end.
+
+        Returns:
+            Span: A new (possibly smaller) span.
+        """
+        start, end, style = self
+        if offset < end:
+            return Span(start, offset, style)
+        return self
+
+    def extend(self, cells: int) -> "Span":
+        """Extend the span by the given number of cells.
+
+        Args:
+            cells (int): Additional space to add to end of span.
+
+        Returns:
+            Span: A span.
+        """
+        start, end, style = self
+        if cells:
+            return Span(start, end + cells, style)
+        return self
 
 
 class Text(JupyterMixin):
