@@ -123,7 +123,8 @@ class ColumnSplitter(Splitter):
 
     name = "column"
 
-    def get_tree_icon(self) -> str:
+    @staticmethod
+    def get_tree_icon() -> str:
         return "[layout.tree.column]⬍"
 
     def divide(
