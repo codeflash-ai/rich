@@ -1,6 +1,5 @@
 import sys
 from fractions import Fraction
-from math import ceil
 from typing import cast, List, Optional, Sequence
 
 if sys.version_info >= (3, 8):
@@ -124,25 +123,27 @@ def ratio_distribute(
         List[int]: A list of integers guaranteed to sum to total.
     """
     if minimums:
-        ratios = [ratio if _min else 0 for ratio, _min in zip(ratios, minimums)]
+        ratios = [ratio if min_val else 0 for ratio, min_val in zip(ratios, minimums)]
     total_ratio = sum(ratios)
     assert total_ratio > 0, "Sum of ratios must be > 0"
 
     total_remaining = total
-    distributed_total: List[int] = []
-    append = distributed_total.append
-    if minimums is None:
-        _minimums = [0] * len(ratios)
-    else:
-        _minimums = minimums
-    for ratio, minimum in zip(ratios, _minimums):
+    distributed_total = [0] * len(ratios)  # Pre-allocate list to avoid append overhead
+    _minimums = minimums if minimums else [0] * len(ratios)
+
+    for i in range(len(ratios)):
+        ratio = ratios[i]
+        minimum = _minimums[i]
         if total_ratio > 0:
-            distributed = max(minimum, ceil(ratio * total_remaining / total_ratio))
+            distributed = max(
+                minimum, (ratio * total_remaining + total_ratio - 1) // total_ratio
+            )
         else:
             distributed = total_remaining
-        append(distributed)
+        distributed_total[i] = distributed
         total_ratio -= ratio
         total_remaining -= distributed
+
     return distributed_total
 
 
