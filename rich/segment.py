@@ -358,26 +358,31 @@ class Segment(NamedTuple):
         """Get the length of list of segments.
 
         Args:
-            line (List[Segment]): A line encoded as a list of Segments (assumes no '\\\\n' characters),
+            line (List[Segment]): A line encoded as a list of Segments (assumes no '\\n' characters).
 
         Returns:
             int: The length of the line.
         """
+        # Inline cell_len to avoid repeated lookups
         _cell_len = cell_len
-        return sum(_cell_len(text) for text, style, control in line if not control)
+        return sum(_cell_len(seg.text) for seg in line if not seg.control)
 
     @classmethod
     def get_shape(cls, lines: List[List["Segment"]]) -> Tuple[int, int]:
         """Get the shape (enclosing rectangle) of a list of lines.
 
         Args:
-            lines (List[List[Segment]]): A list of lines (no '\\\\n' characters).
+            lines (List[List[Segment]]): A list of lines (no '\\n' characters).
 
         Returns:
             Tuple[int, int]: Width and height in characters.
         """
-        get_line_length = cls.get_line_length
-        max_width = max(get_line_length(line) for line in lines) if lines else 0
+        max_width = 0
+        for line in lines:
+            # Directly calculate the length here to avoid extra function call
+            line_length = sum(cell_len(seg.text) for seg in line if not seg.control)
+            if line_length > max_width:
+                max_width = line_length
         return (max_width, len(lines))
 
     @classmethod
