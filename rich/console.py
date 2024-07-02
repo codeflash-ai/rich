@@ -33,6 +33,10 @@ from typing import (
 )
 
 from rich._null_file import NULL_FILE
+from rich._windows import (
+    WindowsConsoleFeatures,
+    get_windows_console_features as _get_windows_console_features,
+)
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, runtime_checkable
@@ -575,13 +579,10 @@ class RenderHook(ABC):
 _windows_console_features: Optional["WindowsConsoleFeatures"] = None
 
 
-def get_windows_console_features() -> "WindowsConsoleFeatures":  # pragma: no cover
+def get_windows_console_features() -> WindowsConsoleFeatures:  # pragma: no cover
     global _windows_console_features
-    if _windows_console_features is not None:
-        return _windows_console_features
-    from ._windows import get_windows_console_features
-
-    _windows_console_features = get_windows_console_features()
+    if _windows_console_features is None:
+        _windows_console_features = _get_windows_console_features()
     return _windows_console_features
 
 
