@@ -103,7 +103,8 @@ class RowSplitter(Splitter):
 
     name = "row"
 
-    def get_tree_icon(self) -> str:
+    @staticmethod
+    def get_tree_icon() -> str:
         return "[layout.tree.row]⬌"
 
     def divide(
