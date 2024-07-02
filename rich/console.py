@@ -162,8 +162,9 @@ class ConsoleOptions:
         Returns:
             ConsoleOptions: a copy of self.
         """
-        options: ConsoleOptions = ConsoleOptions.__new__(ConsoleOptions)
-        options.__dict__ = self.__dict__.copy()
+        options = ConsoleOptions.__new__(ConsoleOptions)
+        for attr, value in self.__dict__.items():
+            setattr(options, attr, value)
         return options
 
     def update(
@@ -235,7 +236,9 @@ class ConsoleOptions:
         Returns:
             ~ConsoleOptions: New console options instance.
         """
-        options = self.copy()
+        options = ConsoleOptions.__new__(ConsoleOptions)
+        for attr, value in self.__dict__.items():
+            setattr(options, attr, value)
         options.height = None
         return options
 
