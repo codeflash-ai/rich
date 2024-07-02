@@ -26,10 +26,18 @@ class JupyterRenderable:
         self, include: Sequence[str], exclude: Sequence[str], **kwargs: Any
     ) -> Dict[str, str]:
         data = {"text/plain": self.text, "text/html": self.html}
+
+        # Check if we need to filter by include
         if include:
-            data = {k: v for (k, v) in data.items() if k in include}
+            data = {k: data[k] for k in data if k in include}
+            # Early return if there's nothing to exclude
+            if not exclude:
+                return data
+
+        # Check if we need to filter by exclude
         if exclude:
-            data = {k: v for (k, v) in data.items() if k not in exclude}
+            data = {k: data[k] for k in data if k not in exclude}
+
         return data
 
 
