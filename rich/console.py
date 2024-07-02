@@ -2573,7 +2573,7 @@ def _svg_hash(svg_main_code: str) -> str:
     Returns:
         str: a hash of the given content
     """
-    return str(zlib.adler32(svg_main_code.encode()))
+    return str(zlib.adler32(svg_main_code.encode("utf-8")))
 
 
 if __name__ == "__main__":  # pragma: no cover
