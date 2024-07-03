@@ -27,6 +27,8 @@ from typing import (
 )
 
 from rich.repr import RichReprResult
+from rich._loop import loop_last
+from rich.cells import cell_len
 
 try:
     import attr as _attr_module
@@ -473,8 +475,9 @@ class Node:
         Returns:
             str: A repr string of the original object.
         """
-        lines = [_Line(node=self, is_root=True)]
+        lines: List[_Line] = [_Line(node=self, is_root=True)]
         line_no = 0
+
         while line_no < len(lines):
             line = lines[line_no]
             if line.expandable and not line.expanded:
@@ -482,8 +485,52 @@ class Node:
                     lines[line_no : line_no + 1] = line.expand(indent_size)
             line_no += 1
 
-        repr_str = "\n".join(str(line) for line in lines)
-        return repr_str
+        return "\n".join(map(str, lines))
+
+    @property
+    def expandable(self) -> bool:
+        """Check if the line may be expanded."""
+        return self.node is not None and bool(self.node.children)
+
+    def check_length(self, max_length: int) -> bool:
+        """Check this line fits within a given number of cells."""
+        total_length = (
+            len(self.whitespace) + cell_len(self.text) + cell_len(self.suffix)
+        )
+        return self.node.check_length(total_length, max_length)
+
+    def expand(self, indent_size: int) -> Iterable["_Line"]:
+        """Expand this line by adding children on their own line."""
+        node = self.node
+        whitespace = self.whitespace
+        indent_whitespace = whitespace + " " * indent_size
+
+        if node.key_repr:
+            yield _Line(
+                text=f"{node.key_repr}{node.key_separator}{node.open_brace}",
+                whitespace=whitespace,
+            )
+        else:
+            yield _Line(text=node.open_brace, whitespace=whitespace)
+
+        tuple_of_one = node.is_tuple and len(node.children) == 1
+        separator = "," if tuple_of_one else node.separator
+
+        for last, child in loop_last(node.children):
+            yield _Line(
+                parent=self,
+                node=child,
+                whitespace=indent_whitespace,
+                suffix=separator,
+                last=last and not tuple_of_one,
+            )
+
+        yield _Line(
+            text=node.close_brace,
+            whitespace=whitespace,
+            suffix=self.suffix,
+            last=self.last,
+        )
 
 
 @dataclass
