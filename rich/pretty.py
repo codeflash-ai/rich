@@ -27,6 +27,7 @@ from typing import (
 )
 
 from rich.repr import RichReprResult
+import attr as _attr_module
 
 try:
     import attr as _attr_module
@@ -58,7 +59,7 @@ if TYPE_CHECKING:
 
 def _is_attr_object(obj: Any) -> bool:
     """Check if an object was created with attrs module."""
-    return _has_attrs and _attr_module.has(type(obj))
+    return hasattr(_attr_module, "has") and _attr_module.has(type(obj))
 
 
 def _get_attr_fields(obj: Any) -> Sequence["_attr_module.Attribute[Any]"]:
@@ -393,12 +394,15 @@ _MAPPING_CONTAINERS = (dict, os._Environ, MappingProxyType, UserDict)
 
 def is_expandable(obj: Any) -> bool:
     """Check if an object may be expanded by pretty print."""
-    return (
-        _safe_isinstance(obj, _CONTAINERS)
-        or (is_dataclass(obj))
-        or (hasattr(obj, "__rich_repr__"))
-        or _is_attr_object(obj)
-    ) and not isclass(obj)
+    if type(obj) in _CONTAINERS:
+        return True
+    if is_dataclass(obj):
+        return True
+    if hasattr(obj, "__rich_repr__"):
+        return True
+    if _is_attr_object(obj):
+        return True
+    return False
 
 
 @dataclass
@@ -944,6 +948,21 @@ def pprint(
         ),
         soft_wrap=True,
     )
+
+
+def _safe_isinstance(
+    obj: object, class_or_tuple: Union[type, Tuple[type, ...]]
+) -> bool:
+    """isinstance can fail in rare cases, for example types with no __class__"""
+    try:
+        return isinstance(obj, class_or_tuple)
+    except Exception:
+        return False
+
+
+def _is_attr_object(obj: Any) -> bool:
+    """Check if an object was created with attrs module."""
+    return hasattr(_attr_module, "has") and _attr_module.has(type(obj))
 
 
 if __name__ == "__main__":  # pragma: no cover
