@@ -9,6 +9,7 @@ See Also:
     * `Wikipedia: Binary prefix <https://en.wikipedia.org/wiki/Binary_prefix>`_
 
 """
+from typing import Iterable, Optional
 
 __all__ = ["decimal"]
 
@@ -31,13 +32,9 @@ def _to_str(
     for i, suffix in enumerate(suffixes, 2):  # noqa: B007
         unit = base**i
         if size < unit:
-            break
-    return "{:,.{precision}f}{separator}{}".format(
-        (base * size / unit),
-        suffix,
-        precision=precision,
-        separator=separator,
-    )
+            return f"{base * size / unit:,.{precision}f}{separator}{suffix}"
+
+    return f"{base * size / unit:,.{precision}f}{separator}{suffixes[-1]}"
 
 
 def pick_unit_and_suffix(size: int, suffixes: List[str], base: int) -> Tuple[int, str]:
@@ -86,3 +83,24 @@ def decimal(
         precision=precision,
         separator=separator,
     )
+
+
+def _to_str(
+    size: int,
+    suffixes: Iterable[str],
+    base: int,
+    *,
+    precision: Optional[int] = 1,
+    separator: Optional[str] = " ",
+) -> str:
+    if size == 1:
+        return "1 byte"
+    elif size < base:
+        return f"{size:,} bytes"
+
+    for i, suffix in enumerate(suffixes, 2):  # noqa: B007
+        unit = base**i
+        if size < unit:
+            return f"{base * size / unit:,.{precision}f}{separator}{suffix}"
+
+    return f"{base * size / unit:,.{precision}f}{separator}{suffixes[-1]}"
