@@ -15,7 +15,8 @@ class NullFile(IO[str]):
     def readable(self) -> bool:
         return False
 
-    def readline(self, __limit: int = 1) -> str:
+    @staticmethod
+    def readline(__limit: int = 1) -> str:
         return ""
 
     def readlines(self, __hint: int = 1) -> List[str]:
