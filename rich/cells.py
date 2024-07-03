@@ -40,8 +40,8 @@ def cell_len(text: str, _cell_len: Callable[[str], int] = cached_cell_len) -> in
     if len(text) < 512:
         return _cell_len(text)
     _get_size = get_character_cell_size
-    total_size = sum(_get_size(character) for character in text)
-    return total_size
+    # Use a generator instead of list comprehension for performance improvement
+    return sum(map(_get_size, text))
 
 
 @lru_cache(maxsize=4096)
@@ -87,7 +87,7 @@ def _get_codepoint_cell_size(codepoint: int) -> int:
 
 
 def set_cell_size(text: str, total: int) -> str:
-    """Set the length of a string to fit within given number of cells."""
+    """Set the length of a string to fit within the given number of cells."""
 
     if _is_single_cell_widths(text):
         size = len(text)
@@ -97,6 +97,7 @@ def set_cell_size(text: str, total: int) -> str:
 
     if total <= 0:
         return ""
+
     cell_size = cell_len(text)
     if cell_size == total:
         return text
@@ -106,8 +107,8 @@ def set_cell_size(text: str, total: int) -> str:
     start = 0
     end = len(text)
 
-    # Binary search until we find the right size
-    while True:
+    # Use binary search to find the substring of the correct cell length
+    while start < end:
         pos = (start + end) // 2
         before = text[: pos + 1]
         before_len = cell_len(before)
@@ -118,7 +119,8 @@ def set_cell_size(text: str, total: int) -> str:
         if before_len > total:
             end = pos
         else:
-            start = pos
+            start = pos + 1
+    return text[:end]
 
 
 def chop_cells(
@@ -156,6 +158,22 @@ def chop_cells(
             total_width += cell_width
 
     return ["".join(line) for line in lines]
+
+
+def cell_len(text: str, _cell_len: Callable[[str], int] = cached_cell_len) -> int:
+    """Get the number of cells required to display text.
+
+    Args:
+        text (str): Text to display.
+
+    Returns:
+        int: Get the number of cells required to display text.
+    """
+    if len(text) < 512:
+        return _cell_len(text)
+    _get_size = get_character_cell_size
+    # Use a generator instead of list comprehension for performance improvement
+    return sum(map(_get_size, text))
 
 
 if __name__ == "__main__":  # pragma: no cover
