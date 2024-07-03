@@ -137,25 +137,37 @@ def chop_cells(
     """
     _get_character_cell_size = get_character_cell_size
     lines: list[list[str]] = [[]]
-
     append_new_line = lines.append
-    append_to_last_line = lines[-1].append
 
     total_width = 0
+    current_line = lines[0]
+    current_line_append = current_line.append
 
     for character in text:
         cell_width = _get_character_cell_size(character)
-        char_doesnt_fit = total_width + cell_width > width
-
-        if char_doesnt_fit:
-            append_new_line([character])
-            append_to_last_line = lines[-1].append
+        if total_width + cell_width > width:
+            current_line = []
+            append_new_line(current_line)
+            current_line_append = current_line.append
             total_width = cell_width
         else:
-            append_to_last_line(character)
             total_width += cell_width
+        current_line_append(character)
 
     return ["".join(line) for line in lines]
+
+
+@lru_cache(maxsize=4096)
+def get_character_cell_size(character: str) -> int:
+    """Get the cell size of a character.
+
+    Args:
+        character (str): A single character.
+
+    Returns:
+        int: Number of cells (0, 1 or 2) occupied by that character.
+    """
+    return _get_codepoint_cell_size(ord(character))
 
 
 if __name__ == "__main__":  # pragma: no cover
