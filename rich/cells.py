@@ -39,9 +39,7 @@ def cell_len(text: str, _cell_len: Callable[[str], int] = cached_cell_len) -> in
     """
     if len(text) < 512:
         return _cell_len(text)
-    _get_size = get_character_cell_size
-    total_size = sum(_get_size(character) for character in text)
-    return total_size
+    return sum(map(get_character_cell_size, text))
 
 
 @lru_cache(maxsize=4096)
@@ -156,6 +154,19 @@ def chop_cells(
             total_width += cell_width
 
     return ["".join(line) for line in lines]
+
+
+@lru_cache(maxsize=4096)
+def get_character_cell_size(character: str) -> int:
+    """Get the cell size of a character.
+
+    Args:
+        character (str): A single character.
+
+    Returns:
+        int: Number of cells (0, 1 or 2) occupied by that character.
+    """
+    return _get_codepoint_cell_size(ord(character))
 
 
 if __name__ == "__main__":  # pragma: no cover
