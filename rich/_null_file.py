@@ -9,7 +9,7 @@ class NullFile(IO[str]):
     def isatty(self) -> bool:
         return False
 
-    def read(self, __n: int = 1) -> str:
+    def read(self, __n=1):
         return ""
 
     def readable(self) -> bool:
