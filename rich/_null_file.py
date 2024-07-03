@@ -65,5 +65,11 @@ class NullFile(IO[str]):
     def fileno(self) -> int:
         return -1
 
+    def read(self, size: int = -1) -> str:
+        return ""
+
+    def readline(self, size: int = -1) -> str:
+        return ""
+
 
 NULL_FILE = NullFile()
