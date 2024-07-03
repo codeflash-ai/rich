@@ -28,16 +28,14 @@ def _to_str(
     elif size < base:
         return f"{size:,} bytes"
 
-    for i, suffix in enumerate(suffixes, 2):  # noqa: B007
-        unit = base**i
+    unit = base
+    for suffix in suffixes:
+        unit *= base
         if size < unit:
-            break
-    return "{:,.{precision}f}{separator}{}".format(
-        (base * size / unit),
-        suffix,
-        precision=precision,
-        separator=separator,
-    )
+            return f"{size / (unit / base):,.{precision}f}{separator}{suffix}"
+
+    # Extra condition if size exceeds the largest unit
+    return f"{size / (unit / base):,.{precision}f}{separator}{suffixes[-1]}"
 
 
 def pick_unit_and_suffix(size: int, suffixes: List[str], base: int) -> Tuple[int, str]:
