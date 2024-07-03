@@ -790,7 +790,7 @@ class Syntax(JupyterMixin):
     def _process_code(self, code: str) -> Tuple[bool, str]:
         """
         Applies various processing to a raw code string
-        (normalises it so it always ends with a line return, dedents it if necessary, etc.)
+        (normalizes it so it always ends with a line return, dedents it if necessary, etc.)
 
         Args:
             code (str): The raw code string to process
@@ -800,11 +800,9 @@ class Syntax(JupyterMixin):
                 while the string is the processed code.
         """
         ends_on_nl = code.endswith("\n")
-        processed_code = code if ends_on_nl else code + "\n"
-        processed_code = (
-            textwrap.dedent(processed_code) if self.dedent else processed_code
-        )
-        processed_code = processed_code.expandtabs(self.tab_size)
+        processed_code = (code if ends_on_nl else code + "\n").expandtabs(self.tab_size)
+        if self.dedent:
+            processed_code = textwrap.dedent(processed_code)
         return ends_on_nl, processed_code
 
 
