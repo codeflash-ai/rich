@@ -116,7 +116,8 @@ class Column:
 
     def copy(self) -> "Column":
         """Return a copy of this Column."""
-        return replace(self, _cells=[])
+        # Create a new Column instance with an empty _cells attribute
+        return self.__class__(_cells=[])
 
     @property
     def cells(self) -> Iterable["RenderableType"]:
@@ -127,6 +128,9 @@ class Column:
     def flexible(self) -> bool:
         """Check if this column is flexible."""
         return self.ratio is not None
+
+    def __init__(self, _cells=None):
+        self._cells = _cells if _cells is not None else []
 
 
 @dataclass
