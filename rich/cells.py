@@ -69,10 +69,10 @@ def _get_codepoint_cell_size(codepoint: int) -> int:
     """
 
     _table = CELL_WIDTHS
-    lower_bound = 0
-    upper_bound = len(_table) - 1
-    index = (lower_bound + upper_bound) // 2
-    while True:
+    lower_bound, upper_bound = 0, len(_table) - 1
+
+    while lower_bound <= upper_bound:
+        index = (lower_bound + upper_bound) // 2
         start, end, width = _table[index]
         if codepoint < start:
             upper_bound = index - 1
@@ -80,9 +80,7 @@ def _get_codepoint_cell_size(codepoint: int) -> int:
             lower_bound = index + 1
         else:
             return 0 if width == -1 else width
-        if upper_bound < lower_bound:
-            break
-        index = (lower_bound + upper_bound) // 2
+
     return 1
 
 
@@ -156,6 +154,33 @@ def chop_cells(
             total_width += cell_width
 
     return ["".join(line) for line in lines]
+
+
+@lru_cache(maxsize=4096)
+def _get_codepoint_cell_size(codepoint: int) -> int:
+    """Get the cell size of a character.
+
+    Args:
+        codepoint (int): Codepoint of a character.
+
+    Returns:
+        int: Number of cells (0, 1 or 2) occupied by that character.
+    """
+
+    _table = CELL_WIDTHS
+    lower_bound, upper_bound = 0, len(_table) - 1
+
+    while lower_bound <= upper_bound:
+        index = (lower_bound + upper_bound) // 2
+        start, end, width = _table[index]
+        if codepoint < start:
+            upper_bound = index - 1
+        elif codepoint > end:
+            lower_bound = index + 1
+        else:
+            return 0 if width == -1 else width
+
+    return 1
 
 
 if __name__ == "__main__":  # pragma: no cover
