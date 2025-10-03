@@ -34,8 +34,10 @@ class JSON:
         default: Optional[Callable[[Any], Any]] = None,
         sort_keys: bool = False,
     ) -> None:
+        # Avoid unnecessary local rebinding of 'json'
         data = loads(json)
-        json = dumps(
+        # Use local variable for the dumped json string
+        dumped_json = dumps(
             data,
             indent=indent,
             skipkeys=skip_keys,
@@ -45,8 +47,11 @@ class JSON:
             default=default,
             sort_keys=sort_keys,
         )
+        # Instantiate the correct highlighter once and reuse
         highlighter = JSONHighlighter() if highlight else NullHighlighter()
-        self.text = highlighter(json)
+        # Directly assign Text object for better performance
+        self.text = highlighter(dumped_json)
+        # Set attributes directly, as before
         self.text.no_wrap = True
         self.text.overflow = None
 
@@ -99,6 +104,7 @@ class JSON:
         return json_instance
 
     def __rich__(self) -> Text:
+        # No change: returning the already cached rich text
         return self.text
 
 
