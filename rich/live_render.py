@@ -1,11 +1,15 @@
 import sys
 from typing import Optional, Tuple
 
+from rich.console import RenderableType
+from rich.control import Control
+from rich.segment import ControlType
+from rich.style import StyleType
+
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
     from typing_extensions import Literal  # pragma: no cover
-
 
 from ._loop import loop_last
 from .console import Console, ConsoleOptions, RenderableType, RenderResult
@@ -52,17 +56,18 @@ class LiveRender:
         """
         if self._shape is not None:
             _, height = self._shape
-            return Control(
-                ControlType.CARRIAGE_RETURN,
-                (ControlType.ERASE_IN_LINE, 2),
-                *(
-                    (
-                        (ControlType.CURSOR_UP, 1),
-                        (ControlType.ERASE_IN_LINE, 2),
-                    )
-                    * (height - 1)
+            if height > 1:
+                up_and_erase = [ (ControlType.CURSOR_UP, 1), (ControlType.ERASE_IN_LINE, 2) ] * (height - 1)
+                return Control(
+                    ControlType.CARRIAGE_RETURN,
+                    (ControlType.ERASE_IN_LINE, 2),
+                    *up_and_erase
                 )
-            )
+            else:
+                return Control(
+                    ControlType.CARRIAGE_RETURN,
+                    (ControlType.ERASE_IN_LINE, 2),
+                )
         return Control()
 
     def restore_cursor(self) -> Control:
