@@ -33,6 +33,8 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.console import RenderableType
+from rich.table import Column
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -550,8 +552,8 @@ class RenderableColumn(ProgressColumn):
     def __init__(
         self, renderable: RenderableType = "", *, table_column: Optional[Column] = None
     ):
-        self.renderable = renderable
         super().__init__(table_column=table_column)
+        self.renderable = renderable
 
     def render(self, task: "Task") -> RenderableType:
         return self.renderable
