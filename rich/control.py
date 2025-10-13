@@ -2,6 +2,8 @@ import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 
+from rich.segment import ControlCode, ControlType, Segment
+
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
@@ -62,14 +64,22 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
-        _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
-        self.segment = Segment(rendered_codes, None, control_codes)
+        # Avoids extra list in list comprehension and accesses the map directly
+        control_codes: List[ControlCode] = []
+        parts = []
+        _format_map = CONTROL_CODES_FORMAT  # cached in local for efficiency
+
+        # Manually unroll listcomp, avoid repeated isinstance lookup in generator
+        for code in codes:
+            if isinstance(code, ControlType):
+                control_code = (code,)
+            else:
+                control_code = code
+            code_type, *parameters = control_code
+            parts.append(_format_map[code_type](*parameters))
+            control_codes.append(control_code)
+
+        self.segment = Segment("".join(parts), None, control_codes)
 
     @classmethod
     def bell(cls) -> "Control":
