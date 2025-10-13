@@ -33,6 +33,8 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -804,9 +806,9 @@ class TimeRemainingColumn(ProgressColumn):
         hours, minutes = divmod(minutes, 60)
 
         if self.compact and not hours:
-            formatted = f"{minutes:02d}:{seconds:02d}"
+            formatted = "%02d:%02d" % (minutes, seconds)
         else:
-            formatted = f"{hours:d}:{minutes:02d}:{seconds:02d}"
+            formatted = "%d:%02d:%02d" % (hours, minutes, seconds)
 
         return Text(formatted, style=style)
 
