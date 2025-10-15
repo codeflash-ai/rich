@@ -14,6 +14,8 @@ __all__ = ["decimal"]
 
 from typing import Iterable, List, Optional, Tuple
 
+_SUFFIXES_DECIMAL = ("kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+
 
 def _to_str(
     size: int,
@@ -79,10 +81,19 @@ def decimal(
         '30.00kB'
 
     """
-    return _to_str(
-        size,
-        ("kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"),
-        1000,
-        precision=precision,
-        separator=separator,
-    )
+    if size == 1:
+        return "1 byte"
+    base = 1000
+    if size < base:
+        return f"{size:,} bytes"
+    # Fastest scan: no enumerate, one scan with break on first below
+    unit = base
+    for suffix in _SUFFIXES_DECIMAL:
+        if size < unit * base:
+            value = size / unit
+            # Use fast f-string, defer separator to concat for type safety and no closure scope
+            return f"{value:,.{precision}f}{separator}{suffix}"
+        unit *= base
+    # If number is extremely large (exceeding all predefined suffixes)
+    value = size / unit
+    return f"{value:,.{precision}f}{separator}{_SUFFIXES_DECIMAL[-1]}"
