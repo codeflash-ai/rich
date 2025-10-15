@@ -42,11 +42,12 @@ def _to_str(
 
 def pick_unit_and_suffix(size: int, suffixes: List[str], base: int) -> Tuple[int, str]:
     """Pick a suffix and base for the given size."""
-    for i, suffix in enumerate(suffixes):
-        unit = base**i
+    unit = 1
+    for suffix in suffixes:
         if size < unit * base:
-            break
-    return unit, suffix
+            return unit, suffix
+        unit *= base
+    return unit, suffixes[-1]
 
 
 def decimal(
