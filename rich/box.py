@@ -1,5 +1,6 @@
 import sys
 from typing import TYPE_CHECKING, Iterable, List
+from rich._loop import loop_last
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -179,11 +180,14 @@ class Box:
 
         parts: List[str] = []
         append = parts.append
+        bottom = self.bottom
+        bottom_divider = self.bottom_divider  # cache attribute lookup outside loop
         append(self.bottom_left)
+        # Move appending logic into a tight loop with minimal external lookups
         for last, width in loop_last(widths):
-            append(self.bottom * width)
+            append(bottom * width)
             if not last:
-                append(self.bottom_divider)
+                append(bottom_divider)
         append(self.bottom_right)
         return "".join(parts)
 
