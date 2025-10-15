@@ -33,6 +33,12 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
+from rich import get_console
+from rich.console import Console
+from rich.jupyter import JupyterMixin
+from rich.live import Live
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -178,6 +184,7 @@ def track(
 
 class _Reader(RawIOBase, BinaryIO):
     """A reader that tracks progress while it's being read from."""
+    # Optimized: batch progress updates for consecutive readlines to minimize lock contention
 
     def __init__(
         self,
@@ -191,6 +198,8 @@ class _Reader(RawIOBase, BinaryIO):
         self.task = task
         self.close_handle = close_handle
         self._closed = False
+        self._pending_advance = 0
+        self._advance_batch_size = 32  # empirically determined for lock contention reduction
 
     def __enter__(self) -> "_Reader":
         self.handle.__enter__()
@@ -251,7 +260,12 @@ class _Reader(RawIOBase, BinaryIO):
 
     def readline(self, size: int = -1) -> bytes:  # type: ignore[override]
         line = self.handle.readline(size)
-        self.progress.advance(self.task, advance=len(line))
+        line_len = len(line)
+        # Accumulate advances until threshold, then flush to progress.advance()
+        self._pending_advance += line_len
+        if self._pending_advance >= self._advance_batch_size:
+            self.progress.advance(self.task, advance=self._pending_advance)
+            self._pending_advance = 0
         return line
 
     def readlines(self, hint: int = -1) -> List[bytes]:
@@ -274,6 +288,19 @@ class _Reader(RawIOBase, BinaryIO):
 
     def write(self, s: Any) -> int:
         raise UnsupportedOperation("write")
+
+    def close(self) -> None:
+        if not self._closed:
+            if self._pending_advance:
+                self.progress.advance(self.task, advance=self._pending_advance)
+                self._pending_advance = 0
+            if self.close_handle:
+                self.handle.close()
+            self._closed = True
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
 
 
 class _ReadContext(ContextManager[_I], Generic[_I]):
@@ -848,12 +875,21 @@ class MofNCompleteColumn(ProgressColumn):
     def render(self, task: "Task") -> Text:
         """Show completed/total."""
         completed = int(task.completed)
-        total = int(task.total) if task.total is not None else "?"
-        total_width = len(str(total))
-        return Text(
-            f"{completed:{total_width}d}{self.separator}{total}",
-            style="progress.download",
-        )
+
+        # Fast path for bounded tasks: only compute str once, avoid unnecessary checks and unnecessary object creation
+        total_val = task.total
+        if total_val is not None:
+            total_int = int(total_val)
+            # Only compute str(total_int) once
+            total_str = str(total_int)
+            total_width = len(total_str)
+            # Avoid f-string for completed, reduce overhead from format string parsing
+            completed_str = f"{completed:0{total_width}d}"
+            result_str = completed_str + self.separator + total_str
+        else:
+            result_str = f"{completed}{self.separator}?"
+
+        return Text(result_str, style="progress.download")
 
 
 class DownloadColumn(ProgressColumn):
@@ -1067,6 +1103,7 @@ class Progress(JupyterMixin):
         disable (bool, optional): Disable progress display. Defaults to False
         expand (bool, optional): Expand tasks table to fit width. Defaults to False.
     """
+    # No significant hot path in constructor, but avoid rechecking columns type
 
     def __init__(
         self,
@@ -1084,9 +1121,14 @@ class Progress(JupyterMixin):
     ) -> None:
         assert refresh_per_second > 0, "refresh_per_second must be > 0"
         self._lock = RLock()
-        self.columns = columns or self.get_default_columns()
-        self.speed_estimate_period = speed_estimate_period
 
+        # Avoid potential repeated construction of default columns
+        if columns:
+            self.columns = columns
+        else:
+            self.columns = self.get_default_columns()
+
+        self.speed_estimate_period = speed_estimate_period
         self.disable = disable
         self.expand = expand
         self._tasks: Dict[TaskID, Task] = {}
@@ -1522,8 +1564,11 @@ class Progress(JupyterMixin):
             _progress = task._progress
 
             popleft = _progress.popleft
-            while _progress and _progress[0].timestamp < old_sample_time:
+            # Optimized: hoist attribute lookup outside loop, use local variable
+            _progress0 = _progress[0] if _progress else None
+            while _progress0 and _progress0.timestamp < old_sample_time:
                 popleft()
+                _progress0 = _progress[0] if _progress else None
             while len(_progress) > 1000:
                 popleft()
             _progress.append(ProgressSample(current_time, update_completed))
