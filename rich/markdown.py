@@ -5,6 +5,10 @@ from typing import ClassVar, Iterable
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from typing_extensions import get_args
+
+from rich.console import JustifyMethod
+from rich.text import Text
 
 if sys.version_info >= (3, 8):
     from typing import get_args
@@ -314,7 +318,9 @@ class TableDataElement(MarkdownElement):
         else:
             justify = "default"
 
-        assert justify in get_args(JustifyMethod)
+        if not hasattr(cls, '_justify_args'):
+            cls._justify_args = get_args(JustifyMethod)
+        assert justify in cls._justify_args
         return cls(justify=justify)
 
     def __init__(self, justify: JustifyMethod) -> None:
