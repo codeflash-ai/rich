@@ -262,7 +262,11 @@ def is_object_one_of_types(
     Returns `True` if the given object's class (or the object itself, if it's a class) has one of the
     fully qualified names in its MRO.
     """
-    for type_name in get_object_types_mro_as_strings(obj):
+    if not isinstance(fully_qualified_types_names, set):
+        fully_qualified_types_names = set(fully_qualified_types_names)
+    
+    for type_ in get_object_types_mro(obj):
+        type_name = f'{getattr(type_, "__module__", "")}.{getattr(type_, "__qualname__", "")}'
         if type_name in fully_qualified_types_names:
             return True
     return False
