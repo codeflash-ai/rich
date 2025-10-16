@@ -1,5 +1,7 @@
 import sys
 from typing import TYPE_CHECKING, Iterable, List
+from rich._loop import loop_last
+from typing_extensions import Literal
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -155,17 +157,17 @@ class Box:
         else:
             raise ValueError("level must be 'head', 'row' or 'foot'")
 
-        parts: List[str] = []
-        append = parts.append
+        widths_list = list(widths)
+        if not widths_list:
+            segments = []
+        else:
+            segments = [horizontal * width for width in widths_list]
+
+        # Efficiently join the segments with cross as a separator (and handle 'last' implicitly)
+        row = cross.join(segments)
         if edge:
-            append(left)
-        for last, width in loop_last(widths):
-            append(horizontal * width)
-            if not last:
-                append(cross)
-        if edge:
-            append(right)
-        return "".join(parts)
+            row = f"{left}{row}{right}"
+        return row
 
     def get_bottom(self, widths: Iterable[int]) -> str:
         """Get the bottom of a simple box.
