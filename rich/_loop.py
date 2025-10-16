@@ -1,4 +1,5 @@
 from typing import Iterable, Tuple, TypeVar
+from itertools import tee, zip_longest
 
 T = TypeVar("T")
 
