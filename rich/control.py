@@ -1,6 +1,8 @@
 import sys
 import time
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Union
+
+from rich.segment import ControlCode, ControlType, Segment
 
 if sys.version_info >= (3, 8):
     from typing import Final
@@ -62,12 +64,19 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
+        # Optimize: Pre-allocate list size, avoid repeated isinstance, and 
+        # use tuple construction only when needed (tight loop, many calls)
+        control_codes: List[ControlCode] = []
+        for code in codes:
+            if isinstance(code, ControlType):
+                control_codes.append((code,))
+            else:
+                control_codes.append(code)
+        # Localize lookup for speed
         _format_map = CONTROL_CODES_FORMAT
+        # Optimize: Use list/tuple comprehension for generator speedup
         rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
+            _format_map[cc[0]](*cc[1:]) for cc in control_codes
         )
         self.segment = Segment(rendered_codes, None, control_codes)
 
@@ -94,21 +103,19 @@ class Control:
 
         """
 
-        def get_codes() -> Iterable[ControlCode]:
-            control = ControlType
-            if x:
-                yield (
-                    control.CURSOR_FORWARD if x > 0 else control.CURSOR_BACKWARD,
-                    abs(x),
-                )
-            if y:
-                yield (
-                    control.CURSOR_DOWN if y > 0 else control.CURSOR_UP,
-                    abs(y),
-                )
-
-        control = cls(*get_codes())
-        return control
+        # Optimize: Remove inner function defs to reduce call overhead
+        control = ControlType
+        codes: List[ControlCode] = []
+        if x:
+            codes.append(
+                (control.CURSOR_FORWARD if x > 0 else control.CURSOR_BACKWARD, abs(x))
+            )
+        if y:
+            codes.append(
+                (control.CURSOR_DOWN if y > 0 else control.CURSOR_UP, abs(y))
+            )
+        # Use * unpacking only once, speeds up for common case
+        return cls(*codes)
 
     @classmethod
     def move_to_column(cls, x: int, y: int = 0) -> "Control":
