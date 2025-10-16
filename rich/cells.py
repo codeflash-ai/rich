@@ -105,13 +105,14 @@ def set_cell_size(text: str, total: int) -> str:
 
     start = 0
     end = len(text)
+    _cell_len_local = _cell_len_cached
 
     # Binary search until we find the right size
     while True:
         pos = (start + end) // 2
         before = text[: pos + 1]
-        before_len = cell_len(before)
-        if before_len == total + 1 and cell_len(before[-1]) == 2:
+        before_len = _cell_len_local(before)
+        if before_len == total + 1 and _cell_len_local(before[-1]) == 2:
             return before[:-1] + " "
         if before_len == total:
             return before
@@ -156,6 +157,10 @@ def chop_cells(
             total_width += cell_width
 
     return ["".join(line) for line in lines]
+
+@lru_cache(maxsize=1024)
+def _cell_len_cached(text: str) -> int:
+    return cell_len(text)
 
 
 if __name__ == "__main__":  # pragma: no cover
