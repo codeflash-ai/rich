@@ -9,10 +9,6 @@ from ._cell_widths import CELL_WIDTHS
 
 _STARTS = [start for start, _, _ in CELL_WIDTHS]
 
-_WIDTHS = tuple(width for _, _, width in CELL_WIDTHS)
-
-_ENDS = [end for _, end, _ in CELL_WIDTHS]
-
 # Regex to match sequence of the most common character ranges
 _is_single_cell_widths = re.compile("^[\u0020-\u006f\u00a0\u02ff\u0370-\u0482]*$").match
 
