@@ -1,4 +1,3 @@
-from math import sqrt
 from functools import lru_cache
 from typing import Sequence, Tuple, TYPE_CHECKING
 
@@ -52,7 +51,6 @@ class Palette:
             int: Index of closes matching color.
         """
         red1, green1, blue1 = color
-        _sqrt = sqrt
         get_color = self._colors.__getitem__
 
         def get_color_distance(index: int) -> float:
@@ -62,7 +60,7 @@ class Palette:
             red = red1 - red2
             green = green1 - green2
             blue = blue1 - blue2
-            return _sqrt(
+            return (
                 (((512 + red_mean) * red * red) >> 8)
                 + 4 * green * green
                 + (((767 - red_mean) * blue * blue) >> 8)
