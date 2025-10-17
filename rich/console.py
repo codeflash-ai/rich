@@ -514,24 +514,26 @@ def group(fit: bool = True) -> Callable[..., Callable[..., Group]]:
     return decorator
 
 
-def _is_jupyter() -> bool:  # pragma: no cover
+def _is_jupyter() -> bool:
     """Check if we're running in a Jupyter notebook."""
     try:
         get_ipython  # type: ignore[name-defined]
     except NameError:
         return False
     ipython = get_ipython()  # type: ignore[name-defined]
-    shell = ipython.__class__.__name__
+    ipy_class = ipython.__class__
+    shell = ipy_class.__name__
+    # Cache frequently checked values and avoid redundant str/ipython.__class__ calls
     if (
-        "google.colab" in str(ipython.__class__)
-        or os.getenv("DATABRICKS_RUNTIME_VERSION")
+        "google.colab" in ipy_class.__module__  # faster than str(ipy_class)
+        or os.environ.get("DATABRICKS_RUNTIME_VERSION") is not None
         or shell == "ZMQInteractiveShell"
     ):
-        return True  # Jupyter notebook or qtconsole
+        return True
     elif shell == "TerminalInteractiveShell":
-        return False  # Terminal running IPython
+        return False
     else:
-        return False  # Other type (?)
+        return False
 
 
 COLOR_SYSTEMS = {
