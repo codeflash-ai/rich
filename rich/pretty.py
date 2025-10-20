@@ -95,6 +95,10 @@ def _has_default_namedtuple_repr(obj: object) -> bool:
     Returns:
         bool: True if the default repr is used, False if there's a custom repr.
     """
+    if not hasattr(_has_default_namedtuple_repr, "_default_repr_file"):
+        _has_default_namedtuple_repr._default_repr_file = inspect.getfile(_dummy_namedtuple.__repr__)
+    default_repr_file = _has_default_namedtuple_repr._default_repr_file
+    
     obj_file = None
     try:
         obj_file = inspect.getfile(obj.__repr__)
@@ -102,7 +106,6 @@ def _has_default_namedtuple_repr(obj: object) -> bool:
         # OSError handles case where object is defined in __main__ scope, e.g. REPL - no filename available.
         # TypeError trapped defensively, in case of object without filename slips through.
         pass
-    default_repr_file = inspect.getfile(_dummy_namedtuple.__repr__)
     return obj_file == default_repr_file
 
 
