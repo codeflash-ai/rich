@@ -53,22 +53,29 @@ class Palette:
         """
         red1, green1, blue1 = color
         _sqrt = sqrt
-        get_color = self._colors.__getitem__
+        colors = self._colors  # local reference for speed
+        n = len(colors)
+        if n == 0:
+            raise ValueError("Palette is empty")
 
-        def get_color_distance(index: int) -> float:
-            """Get the distance to a color."""
-            red2, green2, blue2 = get_color(index)
+        # Optimize by manually searching minimum instead of using min + lambda
+        min_distance = float('inf')
+        min_index = 0
+        for idx in range(n):
+            red2, green2, blue2 = colors[idx]
             red_mean = (red1 + red2) // 2
             red = red1 - red2
             green = green1 - green2
             blue = blue1 - blue2
-            return _sqrt(
+            distance = _sqrt(
                 (((512 + red_mean) * red * red) >> 8)
                 + 4 * green * green
                 + (((767 - red_mean) * blue * blue) >> 8)
             )
+            if distance < min_distance:
+                min_distance = distance
+                min_index = idx
 
-        min_index = min(range(len(self._colors)), key=get_color_distance)
         return min_index
 
 
