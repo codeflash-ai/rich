@@ -1,6 +1,8 @@
 import sys
 import time
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Union
+
+from rich.segment import ControlCode, ControlType, Segment
 
 if sys.version_info >= (3, 8):
     from typing import Final
@@ -62,14 +64,20 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
+        # Combine comprehension and join logic into a single loop for better performance
+        control_codes: List[ControlCode] = []
+        rendered_code_parts = []
         _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
-        self.segment = Segment(rendered_codes, None, control_codes)
+
+        for code in codes:
+            if isinstance(code, ControlType):
+                entry: ControlCode = (code,)
+            else:
+                entry = code
+            control_codes.append(entry)
+            rendered_code_parts.append(_format_map[entry[0]](*entry[1:]))
+
+        self.segment = Segment("".join(rendered_code_parts), None, control_codes)
 
     @classmethod
     def bell(cls) -> "Control":
@@ -93,22 +101,24 @@ class Control:
             ~Control: Control object.
 
         """
-
-        def get_codes() -> Iterable[ControlCode]:
-            control = ControlType
-            if x:
-                yield (
+        # OPTIMIZATION: Avoid generator, use tuple construction, saves function call/setup cost
+        control = ControlType
+        codes = []
+        if x:
+            codes.append(
+                (
                     control.CURSOR_FORWARD if x > 0 else control.CURSOR_BACKWARD,
                     abs(x),
                 )
-            if y:
-                yield (
+            )
+        if y:
+            codes.append(
+                (
                     control.CURSOR_DOWN if y > 0 else control.CURSOR_UP,
                     abs(y),
                 )
-
-        control = cls(*get_codes())
-        return control
+            )
+        return cls(*codes)
 
     @classmethod
     def move_to_column(cls, x: int, y: int = 0) -> "Control":
