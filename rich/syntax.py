@@ -823,16 +823,28 @@ def _get_code_index_for_syntax_position(
             if the given position's line number is out of range (if it's the column that is out of range
             we silently clamp its value so that it reaches the end of the line)
     """
+    # Avoid redundant len() calls for newlines_offsets
     lines_count = len(newlines_offsets)
-
     line_number, column_index = position
-    if line_number > lines_count or len(newlines_offsets) < (line_number + 1):
+    # Refactor: Compute out-of-range condition more efficiently, avoid unnecessary tuple addition
+    # and redundant len calls
+    # "lines_count" is always equal to len(newlines_offsets). Out-of-range if line_number > lines_count or
+    # line_number+1 > len(newlines_offsets), i.e. line_number >= len(newlines_offsets)
+    if line_number > lines_count or line_number >= lines_count:
         return None  # `line_number` is out of range
+
     line_index = line_number - 1
-    line_length = newlines_offsets[line_index + 1] - newlines_offsets[line_index] - 1
+    # Avoid repeated index computations; use local variables for offsets for faster lookup
+    start_offset = newlines_offsets[line_index]
+    end_offset = newlines_offsets[line_index + 1]
+    line_length = end_offset - start_offset - 1
+
     # If `column_index` is out of range: let's silently clamp it:
-    column_index = min(line_length, column_index)
-    return newlines_offsets[line_index] + column_index
+    if column_index > line_length:
+        column_index = line_length
+
+    # Return value as before, but use local variable for offset computation
+    return start_offset + column_index
 
 
 if __name__ == "__main__":  # pragma: no cover
