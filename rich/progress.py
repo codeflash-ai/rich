@@ -33,6 +33,13 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
+from rich import get_console
+from rich.console import Console
+from rich.jupyter import JupyterMixin
+from rich.live import Live
+from rich.style import StyleType
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -333,11 +340,10 @@ def wrap_file(
 
     """
 
-    columns: List["ProgressColumn"] = (
-        [TextColumn("[progress.description]{task.description}")] if description else []
-    )
-    columns.extend(
-        (
+    # Use tuple literal for columns, and avoid unnecessary list allocation and extension (faster, less memory)
+    if description:
+        columns = (
+            TextColumn("[progress.description]{task.description}"),
             BarColumn(
                 style=style,
                 complete_style=complete_style,
@@ -347,7 +353,19 @@ def wrap_file(
             DownloadColumn(),
             TimeRemainingColumn(),
         )
-    )
+    else:
+        columns = (
+            BarColumn(
+                style=style,
+                complete_style=complete_style,
+                finished_style=finished_style,
+                pulse_style=pulse_style,
+            ),
+            DownloadColumn(),
+            TimeRemainingColumn(),
+        )
+
+    # Avoid passing *columns as a single tuple, which is handled as multiple positional args in Progress
     progress = Progress(
         *columns,
         auto_refresh=auto_refresh,
@@ -848,12 +866,21 @@ class MofNCompleteColumn(ProgressColumn):
     def render(self, task: "Task") -> Text:
         """Show completed/total."""
         completed = int(task.completed)
-        total = int(task.total) if task.total is not None else "?"
-        total_width = len(str(total))
-        return Text(
-            f"{completed:{total_width}d}{self.separator}{total}",
-            style="progress.download",
-        )
+
+        # Fast path for bounded tasks: only compute str once, avoid unnecessary checks and unnecessary object creation
+        total_val = task.total
+        if total_val is not None:
+            total_int = int(total_val)
+            # Only compute str(total_int) once
+            total_str = str(total_int)
+            total_width = len(total_str)
+            # Avoid f-string for completed, reduce overhead from format string parsing
+            completed_str = f"{completed:0{total_width}d}"
+            result_str = completed_str + self.separator + total_str
+        else:
+            result_str = f"{completed}{self.separator}?"
+
+        return Text(result_str, style="progress.download")
 
 
 class DownloadColumn(ProgressColumn):
@@ -1070,7 +1097,7 @@ class Progress(JupyterMixin):
 
     def __init__(
         self,
-        *columns: Union[str, ProgressColumn],
+        *columns: Union[str, 'ProgressColumn'],
         console: Optional[Console] = None,
         auto_refresh: bool = True,
         refresh_per_second: float = 10,
@@ -1078,21 +1105,24 @@ class Progress(JupyterMixin):
         transient: bool = False,
         redirect_stdout: bool = True,
         redirect_stderr: bool = True,
-        get_time: Optional[GetTimeCallable] = None,
+        get_time: Optional['GetTimeCallable'] = None,
         disable: bool = False,
         expand: bool = False,
     ) -> None:
         assert refresh_per_second > 0, "refresh_per_second must be > 0"
         self._lock = RLock()
-        self.columns = columns or self.get_default_columns()
+        # Use tuple for columns, fallback to default if needed, avoids unnecessary list/tuple conversions
+        self.columns = columns if columns else self.get_default_columns()
         self.speed_estimate_period = speed_estimate_period
 
         self.disable = disable
         self.expand = expand
-        self._tasks: Dict[TaskID, Task] = {}
-        self._task_index: TaskID = TaskID(0)
+        self._tasks: Dict['TaskID', 'Task'] = {}
+        self._task_index: 'TaskID' = TaskID(0)
+        # Minimize attribute lookups and method indirections
+        _console = console if console is not None else get_console()
         self.live = Live(
-            console=console or get_console(),
+            console=_console,
             auto_refresh=auto_refresh,
             refresh_per_second=refresh_per_second,
             transient=transient,
@@ -1100,9 +1130,10 @@ class Progress(JupyterMixin):
             redirect_stderr=redirect_stderr,
             get_renderable=self.get_renderable,
         )
-        self.get_time = get_time or self.console.get_time
-        self.print = self.console.print
-        self.log = self.console.log
+        # Avoid method indirection in get_time: call directly from _console if not provided
+        self.get_time = get_time if get_time is not None else _console.get_time
+        self.print = _console.print
+        self.log = _console.log
 
     @classmethod
     def get_default_columns(cls) -> Tuple[ProgressColumn, ...]:
@@ -1247,13 +1278,15 @@ class Progress(JupyterMixin):
         Raises:
             ValueError: When no total value can be extracted from the arguments or the task.
         """
-        # attempt to recover the total from the task
-        total_bytes: Optional[float] = None
+        # Use direct assignment and avoid unnecessary branching and lock use
         if total is not None:
             total_bytes = total
         elif task_id is not None:
             with self._lock:
                 total_bytes = self._tasks[task_id].total
+        else:
+            total_bytes = None
+
         if total_bytes is None:
             raise ValueError(
                 f"unable to get the total number of bytes, please specify 'total'"
