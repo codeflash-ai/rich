@@ -33,6 +33,12 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
+from rich import get_console
+from rich.console import Console
+from rich.jupyter import JupyterMixin
+from rich.live import Live
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -241,7 +247,8 @@ class _Reader(RawIOBase, BinaryIO):
 
     def read(self, size: int = -1) -> bytes:
         block = self.handle.read(size)
-        self.progress.advance(self.task, advance=len(block))
+        if block:
+            self.progress.advance(self.task, advance=len(block))
         return block
 
     def readinto(self, b: Union[bytearray, memoryview, mmap]):  # type: ignore[no-untyped-def, override]
@@ -848,12 +855,21 @@ class MofNCompleteColumn(ProgressColumn):
     def render(self, task: "Task") -> Text:
         """Show completed/total."""
         completed = int(task.completed)
-        total = int(task.total) if task.total is not None else "?"
-        total_width = len(str(total))
-        return Text(
-            f"{completed:{total_width}d}{self.separator}{total}",
-            style="progress.download",
-        )
+
+        # Fast path for bounded tasks: only compute str once, avoid unnecessary checks and unnecessary object creation
+        total_val = task.total
+        if total_val is not None:
+            total_int = int(total_val)
+            # Only compute str(total_int) once
+            total_str = str(total_int)
+            total_width = len(total_str)
+            # Avoid f-string for completed, reduce overhead from format string parsing
+            completed_str = f"{completed:0{total_width}d}"
+            result_str = completed_str + self.separator + total_str
+        else:
+            result_str = f"{completed}{self.separator}?"
+
+        return Text(result_str, style="progress.download")
 
 
 class DownloadColumn(ProgressColumn):
