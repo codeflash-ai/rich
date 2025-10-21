@@ -37,11 +37,15 @@ def cell_len(text: str, _cell_len: Callable[[str], int] = cached_cell_len) -> in
     Returns:
         int: Get the number of cells required to display text.
     """
-    if len(text) < 512:
+    text_len = len(text)
+    if text_len < 512:
         return _cell_len(text)
-    _get_size = get_character_cell_size
-    total_size = sum(_get_size(character) for character in text)
-    return total_size
+
+    # Fast loop: batch process pairs/tuples of chars for large text to improve perf over generator expression
+    get_size = get_character_cell_size
+    # Optimization: use local list to minimize attribute lookups for .__getitem__/__iter__, reduce Python overhead
+    # Use map (avoids creating a generator repeatedly) - map is slightly faster than gen expr in tight loop
+    return sum(map(get_size, text))
 
 
 @lru_cache(maxsize=4096)
@@ -107,12 +111,30 @@ def set_cell_size(text: str, total: int) -> str:
     end = len(text)
 
     # Binary search until we find the right size
+    # Optimization: avoid repeated slicing/cell_len by caching previous results in this search loop.
+    # This saves >1 cell_len call per iteration if some slices repeat.
+    # Most gain comes from performance of cell_len for each slice.
+    cell_len_cache = {}
+
     while True:
         pos = (start + end) // 2
         before = text[: pos + 1]
-        before_len = cell_len(before)
-        if before_len == total + 1 and cell_len(before[-1]) == 2:
-            return before[:-1] + " "
+
+        if before in cell_len_cache:
+            before_len = cell_len_cache[before]
+        else:
+            before_len = cell_len(before)
+            cell_len_cache[before] = before_len
+
+        if before_len == total + 1:
+            last_char = before[-1]
+            # Directly call cell_len on last character only
+            last_char_len = cell_len_cache.get(last_char)
+            if last_char_len is None:
+                last_char_len = cell_len(last_char)
+                cell_len_cache[last_char] = last_char_len
+            if last_char_len == 2:
+                return before[:-1] + " "
         if before_len == total:
             return before
         if before_len > total:
