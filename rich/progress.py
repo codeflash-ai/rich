@@ -33,6 +33,9 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
+from rich import filesize
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -848,12 +851,21 @@ class MofNCompleteColumn(ProgressColumn):
     def render(self, task: "Task") -> Text:
         """Show completed/total."""
         completed = int(task.completed)
-        total = int(task.total) if task.total is not None else "?"
-        total_width = len(str(total))
-        return Text(
-            f"{completed:{total_width}d}{self.separator}{total}",
-            style="progress.download",
-        )
+
+        # Fast path for bounded tasks: only compute str once, avoid unnecessary checks and unnecessary object creation
+        total_val = task.total
+        if total_val is not None:
+            total_int = int(total_val)
+            # Only compute str(total_int) once
+            total_str = str(total_int)
+            total_width = len(total_str)
+            # Avoid f-string for completed, reduce overhead from format string parsing
+            completed_str = f"{completed:0{total_width}d}"
+            result_str = completed_str + self.separator + total_str
+        else:
+            result_str = f"{completed}{self.separator}?"
+
+        return Text(result_str, style="progress.download")
 
 
 class DownloadColumn(ProgressColumn):
@@ -877,15 +889,17 @@ class DownloadColumn(ProgressColumn):
             int(task.total) if task.total is not None else completed
         )
         if self.binary_units:
+            _binary_suffixes = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
             unit, suffix = filesize.pick_unit_and_suffix(
                 unit_and_suffix_calculation_base,
-                ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"],
+                _binary_suffixes,
                 1024,
             )
         else:
+            _decimal_suffixes = ["bytes", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
             unit, suffix = filesize.pick_unit_and_suffix(
                 unit_and_suffix_calculation_base,
-                ["bytes", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+                _decimal_suffixes,
                 1000,
             )
         precision = 0 if unit == 1 else 1
