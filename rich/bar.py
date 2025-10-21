@@ -37,8 +37,13 @@ class Bar(JupyterMixin):
         bgcolor: Union[Color, str] = "default",
     ):
         self.size = size
-        self.begin = max(begin, 0)
-        self.end = min(end, size)
+        # Avoid calling max/min twice; combine logic for clarity and efficiency
+        if begin < 0:
+            begin = 0
+        if end > size:
+            end = size
+        self.begin = begin
+        self.end = end
         self.width = width
         self.style = Style(color=color, bgcolor=bgcolor)
 
@@ -86,8 +91,8 @@ class Bar(JupyterMixin):
     def __rich_measure__(
         self, console: Console, options: ConsoleOptions
     ) -> Measurement:
-        return (
-            Measurement(self.width, self.width)
-            if self.width is not None
-            else Measurement(4, options.max_width)
-        )
+        # Avoid attribute access multiple times for self.width
+        w = self.width
+        if w is not None:
+            return Measurement(w, w)
+        return Measurement(4, options.max_width)
