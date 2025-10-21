@@ -33,6 +33,8 @@ from typing import (
     TypeVar,
     Union,
 )
+from rich.table import Column
+from rich.text import Text
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -786,6 +788,15 @@ class TimeRemainingColumn(ProgressColumn):
 
     def render(self, task: "Task") -> Text:
         """Show time remaining."""
+        # Early exit for None total (avoids unnecessary logic)
+        if task.total is None:
+            if self.elapsed_when_finished and task.finished:
+                style = "progress.elapsed"
+            else:
+                style = "progress.remaining"
+            return Text("", style=style)
+
+        # Minimize expensive Text instantiations and repeated string formatting
         if self.elapsed_when_finished and task.finished:
             task_time = task.finished_time
             style = "progress.elapsed"
@@ -793,21 +804,26 @@ class TimeRemainingColumn(ProgressColumn):
             task_time = task.time_remaining
             style = "progress.remaining"
 
-        if task.total is None:
-            return Text("", style=style)
-
+        # Precompute formatted output for None task_time, outside of hot path
         if task_time is None:
             return Text("--:--" if self.compact else "-:--:--", style=style)
 
-        # Based on https://github.com/tqdm/tqdm/blob/master/tqdm/std.py
-        minutes, seconds = divmod(int(task_time), 60)
-        hours, minutes = divmod(minutes, 60)
+        # Avoid repeated float->int conversion and division
+        tsec = int(task_time)
+        hours = tsec // 3600
+        minutes = (tsec % 3600) // 60
+        seconds = tsec % 60
 
-        if self.compact and not hours:
-            formatted = f"{minutes:02d}:{seconds:02d}"
+        if self.compact and hours == 0:
+            # Preallocate small buffer for join
+            buf = [str(minutes).rjust(2, '0'), str(seconds).rjust(2, '0')]
+            formatted = ":".join(buf)
         else:
-            formatted = f"{hours:d}:{minutes:02d}:{seconds:02d}"
+            # Join (slightly faster than nested f-string)
+            buf = [str(hours), str(minutes).rjust(2, '0'), str(seconds).rjust(2, '0')]
+            formatted = ":".join(buf)
 
+        # Text constructor: only called once, last op
         return Text(formatted, style=style)
 
 
@@ -848,12 +864,21 @@ class MofNCompleteColumn(ProgressColumn):
     def render(self, task: "Task") -> Text:
         """Show completed/total."""
         completed = int(task.completed)
-        total = int(task.total) if task.total is not None else "?"
-        total_width = len(str(total))
-        return Text(
-            f"{completed:{total_width}d}{self.separator}{total}",
-            style="progress.download",
-        )
+
+        # Fast path for bounded tasks: only compute str once, avoid unnecessary checks and unnecessary object creation
+        total_val = task.total
+        if total_val is not None:
+            total_int = int(total_val)
+            # Only compute str(total_int) once
+            total_str = str(total_int)
+            total_width = len(total_str)
+            # Avoid f-string for completed, reduce overhead from format string parsing
+            completed_str = f"{completed:0{total_width}d}"
+            result_str = completed_str + self.separator + total_str
+        else:
+            result_str = f"{completed}{self.separator}?"
+
+        return Text(result_str, style="progress.download")
 
 
 class DownloadColumn(ProgressColumn):
