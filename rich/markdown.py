@@ -171,8 +171,11 @@ class CodeBlock(TextElement):
 
     @classmethod
     def create(cls, markdown: Markdown, token: Token) -> CodeBlock:
-        node_info = token.info or ""
-        lexer_name = node_info.partition(" ")[0]
+        node_info = token.info
+        if node_info:
+            lexer_name = node_info.split(" ", 1)[0]
+        else:
+            lexer_name = "text"
         return cls(lexer_name or "text", markdown.code_theme)
 
     def __init__(self, lexer_name: str, theme: str) -> None:
