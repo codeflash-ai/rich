@@ -369,7 +369,8 @@ def _get_braces_for_deque(_object: Deque[Any]) -> Tuple[str, str, str]:
 
 
 def _get_braces_for_array(_object: "array[Any]") -> Tuple[str, str, str]:
-    return (f"array({_object.typecode!r}, [", "])", f"array({_object.typecode!r})")
+    typecode_repr = repr(_object.typecode)
+    return (f"array({typecode_repr}, [", "])", f"array({typecode_repr})")
 
 
 _BRACES: Dict[type, Callable[[Any], Tuple[str, str, str]]] = {
