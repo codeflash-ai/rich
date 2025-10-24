@@ -40,7 +40,9 @@ def cell_len(text: str, _cell_len: Callable[[str], int] = cached_cell_len) -> in
     if len(text) < 512:
         return _cell_len(text)
     _get_size = get_character_cell_size
-    total_size = sum(_get_size(character) for character in text)
+    total_size = 0
+    for character in text:
+        total_size += _get_size(character)
     return total_size
 
 
@@ -106,15 +108,21 @@ def set_cell_size(text: str, total: int) -> str:
     start = 0
     end = len(text)
 
-    # Binary search until we find the right size
+    # Optimization: Binary search is already optimal, but speed up cell_len(before) for repeated prefixes
+    # We'll use a running prefix sum cache for cell sizes.
+    get_size = get_character_cell_size
+    prefix_sizes = [0] * (len(text) + 1)
+    for i, ch in enumerate(text):
+        prefix_sizes[i + 1] = prefix_sizes[i] + get_size(ch)
+
     while True:
         pos = (start + end) // 2
-        before = text[: pos + 1]
-        before_len = cell_len(before)
-        if before_len == total + 1 and cell_len(before[-1]) == 2:
-            return before[:-1] + " "
+        before_len = prefix_sizes[pos + 1]
+        if before_len == total + 1 and get_size(text[pos]) == 2:
+            # before = text[: pos + 1]; before[-1] == text[pos]
+            return text[:pos] + " "
         if before_len == total:
-            return before
+            return text[:pos + 1]
         if before_len > total:
             end = pos
         else:
