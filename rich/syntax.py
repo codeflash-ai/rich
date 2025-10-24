@@ -823,16 +823,22 @@ def _get_code_index_for_syntax_position(
             if the given position's line number is out of range (if it's the column that is out of range
             we silently clamp its value so that it reaches the end of the line)
     """
+    # Optimize: reduce repeated len() calls and unnecessary checks.
     lines_count = len(newlines_offsets)
 
     line_number, column_index = position
-    if line_number > lines_count or len(newlines_offsets) < (line_number + 1):
-        return None  # `line_number` is out of range
     line_index = line_number - 1
+
+    # Fast out-of-bounds check for line_number
+    # Only need to check if (line_index + 1) is out of range.
+    if line_number > lines_count or (line_index + 1) >= lines_count:
+        return None  # `line_number` is out of range
+
+    # Direct subtraction avoids extra function calls. Only the necessary line offsets are accessed.
     line_length = newlines_offsets[line_index + 1] - newlines_offsets[line_index] - 1
-    # If `column_index` is out of range: let's silently clamp it:
-    column_index = min(line_length, column_index)
-    return newlines_offsets[line_index] + column_index
+
+    # Clamp column_index using min()
+    return newlines_offsets[line_index] + (column_index if column_index <= line_length else line_length)
 
 
 if __name__ == "__main__":  # pragma: no cover
