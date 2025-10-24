@@ -500,13 +500,13 @@ def group(fit: bool = True) -> Callable[..., Callable[..., Group]]:
     """
 
     def decorator(
-        method: Callable[..., Iterable[RenderableType]]
-    ) -> Callable[..., Group]:
+        method: Callable[..., Iterable["RenderableType"]]
+    ) -> Callable[..., "Group"]:
         """Convert a method that returns an iterable of renderables in to a Group."""
 
         @wraps(method)
-        def _replace(*args: Any, **kwargs: Any) -> Group:
-            renderables = method(*args, **kwargs)
+        def _replace(*args: Any, **kwargs: Any) -> "Group":
+            renderables = tuple(method(*args, **kwargs))
             return Group(*renderables, fit=fit)
 
         return _replace
