@@ -33,7 +33,7 @@ class Emoji(JupyterMixin):
         self,
         name: str,
         style: Union[str, Style] = "none",
-        variant: Optional[EmojiVariant] = None,
+        variant: Optional["EmojiVariant"] = None,
     ) -> None:
         """A single emoji character.
 
