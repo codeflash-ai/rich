@@ -1,5 +1,6 @@
 import sys
 from typing import TYPE_CHECKING, Iterable, List
+from rich import box as box
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -81,12 +82,19 @@ class Box:
         Returns:
             Box: A different Box or the same Box.
         """
-        box = self
+        # Micro-optimize: Avoid multiple assignments to box, return early if possible
         if options.legacy_windows and safe:
-            box = LEGACY_WINDOWS_SUBSTITUTIONS.get(box, box)
-        if options.ascii_only and not box.ascii:
-            box = ASCII
-        return box
+            box_sub = LEGACY_WINDOWS_SUBSTITUTIONS.get(self)
+            if box_sub is not None:
+                if options.ascii_only and not box_sub.ascii:
+                    return ASCII
+                return box_sub
+            if options.ascii_only and not self.ascii:
+                return ASCII
+            return self
+        if options.ascii_only and not self.ascii:
+            return ASCII
+        return self
 
     def get_plain_headed_box(self) -> "Box":
         """If this box uses special characters for the borders of the header, then
