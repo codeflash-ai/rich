@@ -1,5 +1,6 @@
 import sys
 from typing import TYPE_CHECKING, Iterable, List
+from rich._loop import loop_last
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -107,14 +108,15 @@ class Box:
         Returns:
             str: A string of box characters.
         """
-
         parts: List[str] = []
         append = parts.append
+        top = self.top
+        top_divider = self.top_divider
         append(self.top_left)
         for last, width in loop_last(widths):
-            append(self.top * width)
+            append(top * width)
             if not last:
-                append(self.top_divider)
+                append(top_divider)
         append(self.top_right)
         return "".join(parts)
 
