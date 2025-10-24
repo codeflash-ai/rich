@@ -345,11 +345,12 @@ class Capture:
 
     def get(self) -> str:
         """Get the result of the capture."""
-        if self._result is None:
+        result = self._result
+        if result is None:
             raise CaptureError(
                 "Capture result is not available until context manager exits."
             )
-        return self._result
+        return result
 
 
 class ThemeContext:
