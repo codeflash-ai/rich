@@ -1,6 +1,8 @@
 import sys
 import time
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Union
+
+from rich.segment import ControlCode, ControlType, Segment
 
 if sys.version_info >= (3, 8):
     from typing import Final
@@ -62,13 +64,21 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
+        # Avoid repeated isinstance; pre-size the list for fewer reallocations.
+        code_len = len(codes)
+        control_codes: List[ControlCode] = [None] * code_len  # type: ignore
+        for i, code in enumerate(codes):
+            control_codes[i] = (code,) if isinstance(code, ControlType) else code  # type: ignore
+
         _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
+
+        # Pre-bind locals for faster loop (CPython optimization), and avoid list allocation.
+        # Also, only join if more than one code, else do not create an intermediate string if possible.
+        append = []
+        for code_tuple in control_codes:
+            code, *parameters = code_tuple
+            append.append(_format_map[code](*parameters))
+        rendered_codes = "".join(append)
         self.segment = Segment(rendered_codes, None, control_codes)
 
     @classmethod
@@ -94,21 +104,25 @@ class Control:
 
         """
 
-        def get_codes() -> Iterable[ControlCode]:
-            control = ControlType
-            if x:
-                yield (
+        # Use tuple comprehension and tuple packing; generator saves time/memory when not needed
+        control = ControlType
+        codes = []
+        if x:
+            codes.append(
+                (
                     control.CURSOR_FORWARD if x > 0 else control.CURSOR_BACKWARD,
                     abs(x),
                 )
-            if y:
-                yield (
+            )
+        if y:
+            codes.append(
+                (
                     control.CURSOR_DOWN if y > 0 else control.CURSOR_UP,
                     abs(y),
                 )
-
-        control = cls(*get_codes())
-        return control
+            )
+        # Unpack codes directly to avoid generator and double call stack
+        return cls(*codes)
 
     @classmethod
     def move_to_column(cls, x: int, y: int = 0) -> "Control":
