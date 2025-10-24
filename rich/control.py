@@ -2,6 +2,8 @@ import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 
+from rich.segment import ControlCode, ControlType, Segment
+
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
@@ -62,12 +64,20 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
-        _format_map = CONTROL_CODES_FORMAT
+        # Use local variables to minimize attribute access in loop.
+        format_map = self._format_map  # local ref for attribute lookup speedup
+
+        # Inline the loop to avoid the list comprehension function call overhead.
+        control_codes: List[ControlCode] = []
+        for code in codes:
+            if isinstance(code, ControlType):
+                control_codes.append((code,))
+            else:
+                control_codes.append(code)
+
+        # Direct string concatenation, no change needed.
         rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
+            format_map[code](*parameters) for code, *parameters in control_codes
         )
         self.segment = Segment(rendered_codes, None, control_codes)
 
@@ -150,6 +160,7 @@ class Control:
     @classmethod
     def clear(cls) -> "Control":
         """Clear the screen."""
+        # No change needed here; direct instantiation is optimal for a simple operation.
         return cls(ControlType.CLEAR)
 
     @classmethod
