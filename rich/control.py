@@ -2,6 +2,8 @@ import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 
+from rich.segment import ControlCode, ControlType, Segment
+
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
@@ -65,10 +67,16 @@ class Control:
         control_codes: List[ControlCode] = [
             (code,) if isinstance(code, ControlType) else code for code in codes
         ]
-        _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
+        
+        # Fast-path for single ControlType with no parameters
+        if len(control_codes) == 1 and len(control_codes[0]) == 1:
+            code = control_codes[0][0]
+            rendered_codes = CONTROL_CODES_FORMAT[code]()
+        else:
+            _format_map = CONTROL_CODES_FORMAT
+            rendered_codes = "".join(
+                _format_map[code](*parameters) for code, *parameters in control_codes
+            )
         self.segment = Segment(rendered_codes, None, control_codes)
 
     @classmethod
