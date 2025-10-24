@@ -514,17 +514,19 @@ def group(fit: bool = True) -> Callable[..., Callable[..., Group]]:
     return decorator
 
 
-def _is_jupyter() -> bool:  # pragma: no cover
+def _is_jupyter() -> bool:
     """Check if we're running in a Jupyter notebook."""
     try:
-        get_ipython  # type: ignore[name-defined]
+        ipython = get_ipython()  # type: ignore[name-defined]
     except NameError:
         return False
-    ipython = get_ipython()  # type: ignore[name-defined]
     shell = ipython.__class__.__name__
+    ipython_class_str = ipython.__class__.__module__
+    # Check Databricks environment first, as it doesn't depend on IPython name
+    if os.getenv("DATABRICKS_RUNTIME_VERSION"):
+        return True
     if (
-        "google.colab" in str(ipython.__class__)
-        or os.getenv("DATABRICKS_RUNTIME_VERSION")
+        "google.colab" in ipython_class_str
         or shell == "ZMQInteractiveShell"
     ):
         return True  # Jupyter notebook or qtconsole
