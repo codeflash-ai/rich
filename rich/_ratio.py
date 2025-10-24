@@ -101,7 +101,7 @@ def ratio_reduce(
     append = result.append
     for ratio, maximum, value in zip(ratios, maximums, values):
         if ratio and total_ratio > 0:
-            distributed = min(maximum, round(ratio * total_remaining / total_ratio))
+            distributed = min(maximum, (ratio * total_remaining + total_ratio // 2) // total_ratio)
             append(value - distributed)
             total_remaining -= distributed
             total_ratio -= ratio
