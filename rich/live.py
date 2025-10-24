@@ -47,7 +47,6 @@ class Live(JupyterMixin, RenderHook):
         vertical_overflow (VerticalOverflowMethod, optional): How to handle renderable when it is too tall for the console. Defaults to "ellipsis".
         get_renderable (Callable[[], RenderableType], optional): Optional callable to get renderable. Defaults to None.
     """
-
     def __init__(
         self,
         renderable: Optional[RenderableType] = None,
@@ -79,7 +78,7 @@ class Live(JupyterMixin, RenderHook):
         self._started: bool = False
         self.transient = True if screen else transient
 
-        self._refresh_thread: Optional[_RefreshThread] = None
+        self._refresh_thread: Optional["_RefreshThread"] = None
         self.refresh_per_second = refresh_per_second
 
         self.vertical_overflow = vertical_overflow
@@ -94,12 +93,12 @@ class Live(JupyterMixin, RenderHook):
         return self._started
 
     def get_renderable(self) -> RenderableType:
-        renderable = (
-            self._get_renderable()
-            if self._get_renderable is not None
-            else self._renderable
-        )
-        return renderable or ""
+        get_renderable = self._get_renderable
+        if get_renderable is not None:
+            renderable = get_renderable()
+        else:
+            renderable = self._renderable
+        return renderable if renderable is not None else ""
 
     def start(self, refresh: bool = False) -> None:
         """Start live rendering display.
