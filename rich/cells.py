@@ -69,20 +69,17 @@ def _get_codepoint_cell_size(codepoint: int) -> int:
     """
 
     _table = CELL_WIDTHS
-    lower_bound = 0
-    upper_bound = len(_table) - 1
-    index = (lower_bound + upper_bound) // 2
-    while True:
-        start, end, width = _table[index]
+    lo = 0
+    hi = len(_table)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        start, end, width = _table[mid]
         if codepoint < start:
-            upper_bound = index - 1
+            hi = mid
         elif codepoint > end:
-            lower_bound = index + 1
+            lo = mid + 1
         else:
             return 0 if width == -1 else width
-        if upper_bound < lower_bound:
-            break
-        index = (lower_bound + upper_bound) // 2
     return 1
 
 
