@@ -2,6 +2,8 @@ import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 
+from rich.segment import ControlCode, ControlType, Segment
+
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
@@ -60,15 +62,22 @@ class Control:
     """
 
     __slots__ = ["segment"]
-
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
-        _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
+        # Avoid repeated lookups in the hot path
+        format_map = CONTROL_CODES_FORMAT
+        # Use a single list comprehension to build both control_codes and rendered_codes efficiently
+        control_codes: List[ControlCode] = []
+        rendered_parts = []
+        for code in codes:
+            # Unpack or wrap code as needed
+            if isinstance(code, ControlType):
+                control_code = (code,)
+                control_codes.append(control_code)
+                rendered_parts.append(format_map[code]())
+            else:
+                control_codes.append(code)
+                rendered_parts.append(format_map[code[0]](*code[1:]))
+        rendered_codes = "".join(rendered_parts)
         self.segment = Segment(rendered_codes, None, control_codes)
 
     @classmethod
@@ -121,18 +130,18 @@ class Control:
         Returns:
             ~Control: Control object.
         """
-
-        return (
-            cls(
-                (ControlType.CURSOR_MOVE_TO_COLUMN, x),
-                (
-                    ControlType.CURSOR_DOWN if y > 0 else ControlType.CURSOR_UP,
-                    abs(y),
-                ),
+        # Directly choose argument tuple to minimize branching & allocations
+        if y:
+            move_type = (
+                ControlType.CURSOR_DOWN if y > 0 else ControlType.CURSOR_UP,
+                abs(y),
             )
-            if y
-            else cls((ControlType.CURSOR_MOVE_TO_COLUMN, x))
-        )
+            return cls(
+                (ControlType.CURSOR_MOVE_TO_COLUMN, x),
+                move_type,
+            )
+        else:
+            return cls((ControlType.CURSOR_MOVE_TO_COLUMN, x))
 
     @classmethod
     def move_to(cls, x: int, y: int) -> "Control":
