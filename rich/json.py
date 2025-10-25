@@ -35,16 +35,17 @@ class JSON:
         sort_keys: bool = False,
     ) -> None:
         data = loads(json)
-        json = dumps(
-            data,
-            indent=indent,
-            skipkeys=skip_keys,
-            ensure_ascii=ensure_ascii,
-            check_circular=check_circular,
-            allow_nan=allow_nan,
-            default=default,
-            sort_keys=sort_keys,
-        )
+        dumps_kwargs = {
+            "indent": indent,
+            "skipkeys": skip_keys,
+            "ensure_ascii": ensure_ascii,
+            "check_circular": check_circular,
+            "allow_nan": allow_nan,
+            "sort_keys": sort_keys,
+        }
+        if default is not None:
+            dumps_kwargs["default"] = default
+        json = dumps(data, **dumps_kwargs)
         highlighter = JSONHighlighter() if highlight else NullHighlighter()
         self.text = highlighter(json)
         self.text.no_wrap = True
