@@ -250,20 +250,22 @@ class Live(JupyterMixin, RenderHook):
         self, renderables: List[ConsoleRenderable]
     ) -> List[ConsoleRenderable]:
         """Process renderables to restore cursor and display progress."""
-        self._live_render.vertical_overflow = self.vertical_overflow
-        if self.console.is_interactive:
-            # lock needs acquiring as user can modify live_render renderable at any time unlike in Progress.
+        live_render = self._live_render
+        live_render.vertical_overflow = self.vertical_overflow
+        is_interactive = self.console.is_interactive
+        alt_screen = self._alt_screen
+        # Reduce repeated lookups/conditions inside branches
+        if is_interactive:
             with self._lock:
                 reset = (
                     Control.home()
-                    if self._alt_screen
-                    else self._live_render.position_cursor()
+                    if alt_screen
+                    else live_render.position_cursor()
                 )
-                renderables = [reset, *renderables, self._live_render]
-        elif (
-            not self._started and not self.transient
-        ):  # if it is finished render the final output for files or dumb_terminals
-            renderables = [*renderables, self._live_render]
+                return [reset, *renderables, live_render]
+        elif not self._started and not self.transient:
+            # Output for files or dumb_terminals
+            return [*renderables, live_render]
 
         return renderables
 
