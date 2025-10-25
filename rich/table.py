@@ -116,7 +116,24 @@ class Column:
 
     def copy(self) -> "Column":
         """Return a copy of this Column."""
-        return replace(self, _cells=[])
+        return type(self)(
+            header=self.header,
+            footer=self.footer,
+            header_style=self.header_style,
+            footer_style=self.footer_style,
+            style=self.style,
+            justify=self.justify,
+            vertical=self.vertical,
+            overflow=self.overflow,
+            width=self.width,
+            min_width=self.min_width,
+            max_width=self.max_width,
+            ratio=self.ratio,
+            no_wrap=self.no_wrap,
+            highlight=self.highlight,
+            _index=self._index,
+            _cells=[],
+        )
 
     @property
     def cells(self) -> Iterable["RenderableType"]:
