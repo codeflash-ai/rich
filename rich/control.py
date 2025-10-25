@@ -2,6 +2,8 @@ import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Union
 
+from rich.segment import ControlCode, ControlType, Segment
+
 if sys.version_info >= (3, 8):
     from typing import Final
 else:
@@ -62,13 +64,23 @@ class Control:
     __slots__ = ["segment"]
 
     def __init__(self, *codes: Union[ControlType, ControlCode]) -> None:
-        control_codes: List[ControlCode] = [
-            (code,) if isinstance(code, ControlType) else code for code in codes
-        ]
-        _format_map = CONTROL_CODES_FORMAT
-        rendered_codes = "".join(
-            _format_map[code](*parameters) for code, *parameters in control_codes
-        )
+        if Control._format_map is None:
+            # Only resolve global on first use.
+            from rich.control import CONTROL_CODES_FORMAT
+            Control._format_map = CONTROL_CODES_FORMAT
+        control_codes: List[ControlCode]
+        if codes:
+            control_codes = [
+                (code,) if isinstance(code, ControlType) else code for code in codes
+            ]
+            fm = Control._format_map
+            rendered_codes = "".join(
+                fm[code](*parameters) for code, *parameters in control_codes
+            )
+        else:
+            # Early exit for empty codes
+            control_codes = []
+            rendered_codes = ""
         self.segment = Segment(rendered_codes, None, control_codes)
 
     @classmethod

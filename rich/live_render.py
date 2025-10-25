@@ -1,11 +1,15 @@
 import sys
 from typing import Optional, Tuple
 
+from rich.console import RenderableType
+from rich.control import Control
+from rich.segment import ControlType
+from rich.style import StyleType
+
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
     from typing_extensions import Literal  # pragma: no cover
-
 
 from ._loop import loop_last
 from .console import Console, ConsoleOptions, RenderableType, RenderResult
@@ -50,19 +54,20 @@ class LiveRender:
         Returns:
             Control: A control instance that may be printed.
         """
-        if self._shape is not None:
-            _, height = self._shape
-            return Control(
+        shape = self._shape
+        if shape is not None:
+            _, height = shape
+            # Prebuild the codes list for best performance, avoiding tuple expansion
+            codes = [
                 ControlType.CARRIAGE_RETURN,
-                (ControlType.ERASE_IN_LINE, 2),
-                *(
-                    (
-                        (ControlType.CURSOR_UP, 1),
-                        (ControlType.ERASE_IN_LINE, 2),
-                    )
-                    * (height - 1)
-                )
-            )
+                (ControlType.ERASE_IN_LINE, 2)
+            ]
+            if height > 1:
+                up_codes = [((ControlType.CURSOR_UP, 1), (ControlType.ERASE_IN_LINE, 2))] * (height - 1)
+                # Flatten the tuples for argument expansion
+                for up, erase in up_codes:
+                    codes.extend([up, erase])
+            return Control(*codes)
         return Control()
 
     def restore_cursor(self) -> Control:
